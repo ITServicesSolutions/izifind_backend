@@ -1,15 +1,18 @@
+from calendar import c
+from pyexpat import model
+from tkinter import CASCADE
 from django.db import models
-from accounts.models import CustomUser
+from accounts.models import User
 from apps.mycountry.models import *
 # Create your models here.
 
 class CategoryObjet(models.Model):
     
     #Objets volés, perdus, retrouvés
-    #Au cas où on voudrait ajouter d'autre category d'objet ça se fera sans soucis
+    #Ajouter les types d'objets 
     
     name = models.CharField(max_length=200, verbose_name="Titre")
-    description = models.TextField(verbose_name="Description", null = True)
+    description = models.TextField(verbose_name="Description", null = True, blank=True)
 
     class Meta:
         verbose_name = "Categorie"
@@ -18,9 +21,41 @@ class CategoryObjet(models.Model):
     def __str__(self):
         return self.name
 
+class GammeObjet(models.Model):
 
-class Genre(models.Model):
-    #Téléphone, Ordinateur, Clé, Portefeuil, 
+    #Gammes d'objet
+    #On distigue:
+    # - l'électronique,
+    # - Article d'enfant,
+    # - Bijoux, ...
+
+    name = models.CharField(max_length=200, verbose_name="Gamme")
+    description = models.TextField(verbose_name="Description", null = True, blank = True)
+
+    class Meta:
+        verbose_name = "GammeObjet"
+        verbose_name_plural = "GammeObjets"
+
+    def __str__(self):
+        return self.name
+
+class TypeObjet(models.Model):
+
+    #Pour une gamme, on distigue plusieurs type d'objet:
+    # Ex: Electronique
+    # - Téléphone portable, 
+    # - IPhone
+    # - Mac
+    # - Ordinateur Portatif
+    # - Tablette
+    # - Ordinateur bureautique, 
+    # - Clé ....
+
+    gamme = models.ForeignKey(
+        GammeObjet,
+        on_delete = models.CASCADE,
+        verbose_name = 'Gamme d\'objet',
+    )
     name = models.CharField(max_length=200, verbose_name="Genre d'objets")
     description = models.TextField(verbose_name="Description", null = True)
 
@@ -32,17 +67,61 @@ class Genre(models.Model):
         return self.name
 
 
-class Priority(models.Model):
+class AttributObjet(models.Model):
+
+    #Lorqu'on prend un type d'objet, plusieurs attribut lui sont relié
+    #Ex: Pour un téléphone on a:
+    # - La marque
+    # - Le model
+    # - Le code IMEI
+    # - La couleur, etc
+
+    type = models.ForeignKey(
+        TypeObjet,
+        on_delete = models.CASCADE,
+        verbose_name = 'Type'
+    )
+
+    name = models.CharField(max_length=100, verbose_name="Nom")
+    code = models.CharField(max_length=100, verbose_name="Code de l'attribut")
+    class Meta:
+        verbose_name = "Attribut"
+        verbose_name_plural = "Attributs"
+
+    def __str__(self):
+        return self.name
+
+
+class Statut(models.Model):
     
-    #Priorité attribuée en fonction du type d'objet
+    #Statut de l'objet
+    #Recherche; Vérification, Rendu, Achivé
     
     code = models.CharField(max_length=20, verbose_name="Code")
     name = models.CharField(max_length=100, verbose_name="Titre")
     description = models.TextField(verbose_name="Description", null = True)
 
     class Meta:
-        verbose_name = "Priorité"
-        verbose_name_plural = "Priorités"
+        verbose_name = "Statut"
+        verbose_name_plural = "Statuts"
+
+    def __str__(self):
+        return self.name
+
+class TitreObjet(models.Model):
+
+    type = models.ForeignKey(
+        TypeObjet, 
+        on_delete = models.CASCADE,
+        verbose_name = 'Type associé',
+        )
+    name = models.CharField(max_length=200, verbose_name="Désigantion")
+    description = models.TextField(verbose_name="Description", null = True, blank = True)
+
+
+    class Meta:
+        verbose_name = "TitreObjet"
+        verbose_name_plural = "TitreObjets"
 
     def __str__(self):
         return self.name
@@ -52,21 +131,27 @@ class Objet(models.Model):
     
     # Tous les objets (retrouvés, perdus, volés)
     
-    author = models.ForeignKey(
-        CustomUser, 
+    creator = models.ForeignKey(
+        User, 
         on_delete = models.CASCADE,
-        related_name = "auteur",
-        verbose_name="Propio de l'objet",
+        verbose_name="Créateur de l'objet",
+        related_name = 'createur',
+        null = True,
+        blank = True
         )
     
-    manager = models.ForeignKey(
-        CustomUser,
+    author = models.ForeignKey(
+        User, 
         on_delete = models.CASCADE,
-        related_name = "admin",
-        verbose_name = "Admin IZIFIND"
+        related_name ='auteur',
+        verbose_name="Propio de l'objet",
     )
     
-    title = models.CharField(max_length = 200, verbose_name= "Désignation de l'objet")
+    title = models.ForeignKey(
+        TitreObjet,
+        on_delete=models.CASCADE,
+        verbose_name= "Désignation de l'objet",
+    )
     
     reference = models.CharField(max_length=50, verbose_name= "Reference Objet")
     
@@ -77,37 +162,43 @@ class Objet(models.Model):
         verbose_name = "Categorie d'objet"
         )
 
-    genre = models.ForeignKey(
-        Genre,
-        related_name = "gender",
-        verbose_name = "Genre",
-        on_delete = models.CASCADE
+    gamme = models.ForeignKey(
+        GammeObjet,
+        on_delete = models.SET_NULL,
+        null = True,
+        blank = True,
+        related_name = 'gamme'
     )
-    
-    priority = models.ForeignKey(
-        Priority,
+
+    type = models.ForeignKey(
+        TypeObjet,
+        on_delete = models.SET_NULL,
+        null = True,
+        blank = True,
+        verbose_name = 'Type'
+    )
+
+    statut = models.ForeignKey(
+        Statut,
         on_delete = models.CASCADE,
-        related_name = "priorite",
-        verbose_name = "Priorité"
+        verbose_name = "Statut"
     )
     
     description = models.TextField(verbose_name="Description")
     
     last_address = models.ForeignKey(
         Adresse, 
-        related_name="adresse",
-        verbose_name="Adresse",
+        verbose_name="Dernière Adresse",
         on_delete=models.CASCADE
         )
     
-    date_added = models.DateTimeField(auto_now_add=True)
+    date = models.DateTimeField(auto_now_add=True)
+
+    date_action = models.DateField(verbose_name='Date perte/retrouvé')
     
     # Pour gérer les suppressions. On ne supprime jamais les données d'une BD
     
-    is_visible = models.BooleanField(default=True)
-    
-    #Pour gérer le retour des objets
-    rendu = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Objet"
@@ -116,18 +207,70 @@ class Objet(models.Model):
     def __str__(self):
         return self.title
 
-class Image(models.Model):
+class DetailAttributObjet(models.Model):
+
+    objet = models.ForeignKey(
+        Objet,
+        verbose_name = 'Objet',
+        on_delete = models.CASCADE
+    )
+    
+    attribut = models.ForeignKey(
+        AttributObjet,
+        verbose_name = 'Attribut',
+        on_delete = models.CASCADE,
+    )
+
+    valeur = models.CharField(max_length=254, verbose_name="Valeur de l'attribut")
+
+    class Meta:
+        verbose_name = "DetailObjet"
+        verbose_name_plural = "DetailObjets"
+
+    def __str__(self):
+        return str(str(self.objet) + ' ' + str(self.attibut))
+
+
+class ModifierObjet(models.Model):
+
+    objet = models.ForeignKey(
+        Objet,
+        verbose_name='Objet',
+        on_delete = models.CASCADE
+        )
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name = "Administrateur"
+    )
+
+    change = models.TextField(verbose_name = 'Changement effetué')
+
+    confirm = models.BooleanField(default = False, verbose_name='Modification Confirmer')
+
+    date = models.DateTimeField(auto_now_add = True)
+
+    class Meta:
+        verbose_name = "ModifierObjet"
+        verbose_name_plural = "ModeifierObjets"
+
+    def __str__(self):
+        return str(self.objet)
+
+
+class ImageObjet(models.Model):
     
     object = models.ForeignKey(
         Objet,
         on_delete = models.CASCADE,
-        related_name = "objet",
-        verbose_name = "Objet concerné",
+        verbose_name = "Objet",
         )
     name = models.CharField(max_length=100, verbose_name = "Titre de l'image")
     image = models.ImageField(upload_to = "objet/")
-    caption = models.TextField(verbose_name = "Caption", null = True)
-
+    caption = models.TextField(verbose_name = "Caption", null = True, blank = True)
+    date = models.DateTimeField(auto_now_add=True)
+    
     class Meta:
         verbose_name = "Image"
         verbose_name_plural = "Images"

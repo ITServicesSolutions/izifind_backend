@@ -1,11 +1,11 @@
 from django.db import models
-from accounts.models import CustomUser
+from accounts.models import User
 from apps.objects.models import *
 # Create your models here.
 
 class Commentaire(models.Model):
     user = models.ForeignKey(
-        CustomUser, 
+        User, 
         related_name="comments",
         verbose_name="user",
         on_delete=models.CASCADE

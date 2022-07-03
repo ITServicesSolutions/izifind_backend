@@ -30,5 +30,5 @@ class CustomUserAdmin(UserAdmin):
         }),
     )
 
-admin.site.register(CustomUser, CustomUserAdmin)
+admin.site.register(User, CustomUserAdmin)
 admin.site.register(MyAddress)
